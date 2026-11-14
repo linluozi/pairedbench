@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pairedbench"
-version = "0.1.0"
+version = "0.2.0"
 description = "Interleaved paired A/B benchmarking with a confidence interval and a calibrated verdict"
 readme = "README.md"
 requires-python = ">=3.10"

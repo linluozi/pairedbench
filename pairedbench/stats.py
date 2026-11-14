@@ -152,3 +152,42 @@ def minimum_detectable_effect(
     z_alpha = normal.inv_cdf(1.0 - alpha / 2.0)
     z_power = normal.inv_cdf(power)
     return (z_alpha + z_power) * sigma_log / math.sqrt(n_pairs)
+
+
+def holm_adjust(p_values: Sequence[float]) -> list[float]:
+    """Holm-Bonferroni adjusted p-values, returned in the input order.
+
+    Holm's step-down procedure rejects ``H_(i)`` (ascending p) while
+    ``p_(j) <= alpha / (m - j + 1)`` for every ``j <= i``.  The adjusted
+    p-value that reproduces exactly that decision rule is
+
+        adj_(i) = max_{j <= i} min(1, (m - j + 1) * p_(j))
+
+    so ``adj <= alpha`` is equivalent to the step-down rejection for the same
+    alpha.  Ties are handled by position (any order among equal p-values gives
+    the same adjusted set, because the cumulative maximum flattens them).
+    """
+    m = len(p_values)
+    if m == 0:
+        return []
+    for p in p_values:
+        if not isinstance(p, (int, float)) or math.isnan(p):
+            raise ValueError("p-values must be real numbers")
+        if not 0.0 <= float(p) <= 1.0:
+            raise ValueError("p-values must be within [0, 1]")
+    order = sorted(range(m), key=lambda i: (p_values[i], i))
+    adjusted = [0.0] * m
+    running = 0.0
+    for rank, idx in enumerate(order):
+        scaled = min(1.0, (m - rank) * float(p_values[idx]))
+        if scaled > running:
+            running = scaled
+        adjusted[idx] = running
+    return adjusted
+
+
+def holm_reject(p_values: Sequence[float], alpha: float = 0.05) -> list[bool]:
+    """Per-hypothesis rejection flags at family-wise error rate ``alpha``."""
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must be within (0, 1)")
+    return [adj <= alpha for adj in holm_adjust(p_values)]

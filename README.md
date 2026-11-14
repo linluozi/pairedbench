@@ -139,6 +139,36 @@ The test suite also pins a bug found while building this: in the B-first
 branch the two timing windows must be written to the *opposite* arms.  A
 regression test with a 5 ms / 15 ms sleep pair fails loudly if that is wrong.
 
+## Multiple comparisons (new in 0.2.0)
+
+Running ten A/B comparisons at alpha=0.05 and reporting every "hit" inflates
+the family-wise error rate to roughly `1 - 0.95**10 = 40%`.  `pairedbench multi`
+takes the JSON reports that `ab --json` already writes and applies the
+Holm-Bonferroni step-down correction:
+
+```bash
+pairedbench multi cmp1.json cmp2.json cmp3.json --alpha 0.05
+# Holm-Bonferroni over 3 comparisons (alpha=0.050)
+#   label       raw p   adjusted p   speedup  reject
+#   cmp0.json  0.0040       0.0120    1.200x  yes
+#   cmp1.json  0.0300       0.0600    1.200x  no
+#   cmp2.json  0.2000       0.2000    1.200x  no
+#   family-wise rejections: 1/3
+```
+
+The third line is the point: `p=0.03` is significant on its own, but with three
+comparisons it is not significant after correction.  Adjusted p-values are
+`adj_(i) = max_{j<=i} min(1, (m-j+1) p_(j))` over ascending p, so
+`adj <= alpha` reproduces the step-down decision exactly.
+
+Evidence for this implementation (runnable, no network):
+
+* `tests/test_holm.py` checks 900 seeded cases (300 random p-vectors x 3 alphas,
+  30% of them with forced ties) against an independent transcription of Holm's
+  step-down rule: 0 disagreements.
+* The textbook example `[.01, .04, .03, .005] -> [.03, .06, .06, .02]` is pinned.
+* Bounds and monotonicity are asserted, as are NaN/out-of-range inputs.
+
 ## Reproduce
 
 ```bash

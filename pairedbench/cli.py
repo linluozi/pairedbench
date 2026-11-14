@@ -11,6 +11,7 @@ from . import __version__
 from .calibrate import format_calibration, run_calibration
 from .core import ab_compare, format_comparison
 from .demo import format_demo, run_demo
+from .stats import holm_adjust
 
 
 def _write_json(path: str | None, payload: dict) -> None:
@@ -65,6 +66,47 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_multi(args: argparse.Namespace) -> int:
+    """Adjust p-values from several single-comparison JSON reports."""
+    rows = []
+    for path in args.reports:
+        with open(path, encoding="utf-8") as fh:
+            payload = json.load(fh)
+        p_value = payload.get("p_value")
+        if p_value is None:
+            raise SystemExit("%s: no p_value (was the comparison inconclusive?)" % path)
+        label = payload.get("label") or path.rsplit("/", 1)[-1]
+        rows.append((label, float(p_value), payload.get("speedup"), payload.get("verdict")))
+
+    adjusted = holm_adjust([p for _, p, _, _ in rows])
+    table = []
+    for (label, p_value, speedup, verdict), adj in zip(rows, adjusted):
+        table.append(
+            {
+                "label": label,
+                "p_value": p_value,
+                "p_adjusted": adj,
+                "speedup": speedup,
+                "verdict": verdict,
+                "significant": adj <= args.alpha,
+            }
+        )
+
+    rejected = sum(1 for row in table if row["significant"])
+    print("Holm-Bonferroni over %d comparisons (alpha=%.3f)" % (len(table), args.alpha))
+    print("  %-28s %8s %10s %9s  %s" % ("label", "raw p", "adjusted p", "speedup", "reject"))
+    for row in table:
+        speedup = "-" if row["speedup"] is None else "%.3fx" % row["speedup"]
+        print(
+            "  %-28s %8.4f %10.4f %9s  %s"
+            % (row["label"], row["p_value"], row["p_adjusted"], speedup, "yes" if row["significant"] else "no")
+        )
+    # Family-wise claim: only these survive the multiplicity correction.
+    print("  family-wise rejections: %d/%d" % (rejected, len(table)))
+    _write_json(args.json, {"alpha": args.alpha, "comparisons": table})
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="pairedbench",
@@ -101,6 +143,14 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--samples", type=int, default=21)
     demo.add_argument("--json", help="write raw demo results to this path")
     demo.set_defaults(func=_cmd_demo)
+
+    multi = sub.add_parser(
+        "multi", help="Holm-adjust p-values from several `ab --json` reports"
+    )
+    multi.add_argument("reports", nargs="+", help="JSON files written by `ab --json`")
+    multi.add_argument("--alpha", type=float, default=0.05)
+    multi.add_argument("--json", help="write the adjusted table to this path")
+    multi.set_defaults(func=_cmd_multi)
     return parser
 
 
