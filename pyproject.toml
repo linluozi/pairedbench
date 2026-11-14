@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pairedbench"
+version = "0.1.0"
+description = "Interleaved paired A/B benchmarking with a confidence interval and a calibrated verdict"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "linluozi" }]
+keywords = ["benchmark", "statistics", "bootstrap", "performance", "ab-testing"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+pairedbench = "pairedbench.cli:main"
+
+[tool.setuptools]
+packages = ["pairedbench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
