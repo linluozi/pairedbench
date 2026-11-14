@@ -17,5 +17,8 @@ python -m pairedbench demo --json benchmark/demo.json
   `json_vs_literal_eval`, `split_vs_csv`) including medians, CI, p-value,
   sigma, MDE, drift rho and verdict.
 
-The runs are seeded (`seed=20261115`) and deterministic; re-running the same
-commands on the same Python should reproduce the same rows.
+`calibration.json` is seeded (`seed=20261115`) and byte-reproducible: an
+independent clone re-ran it and got an identical file (`cmp` clean, SHA-256
+`f524a82b...`).  `demo.json` measures real wall-clock time, so its digits move
+between runs; the committed file is the single run quoted in the root README,
+and the verdicts (inconclusive / a_faster / a_faster) are stable.

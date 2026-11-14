@@ -8,6 +8,10 @@ verdict.
 
 Upstream: none
 
+**Evidence in one line:** 29 tests; 0/200 false positives at 21 pairs; a real
+5% effect found 93.5% of the time (0/200 for the unpaired analysis).  Details
+and raw JSON in [Evidence 1](#evidence-1--the-decision-rule-is-calibrated).
+
 ## Why this exists
 
 Microbenchmarks on shared machines lie in a specific, repeatable way: the
@@ -35,7 +39,7 @@ Python 3.10+; the reference environment is CPython 3.12.3.
 ## Quick start
 
 ```bash
-# 1. Compare two shell commands (12 interleaved samples, 2 warmups).
+# 1. Compare two shell commands (12 interleaved samples, 3 warmups).
 pairedbench ab --a "python -c 'import json;json.dumps(list(range(200000)))'" \
                --b "python -c 'import json;json.dumps(list(range(200000)))'" \
                --samples 12
@@ -92,8 +96,9 @@ What this says, and what it does not:
   confidence interval **12x wider** and find the 5% effect **0 / 200** times.
   The pairing is the whole product.
 - **A 20% common drift is invisible to the trend diagnostic** (flagged in only
-  2.0–3.5% of runs) — but it is also harmless here, because it cancels inside
-  each pair.  The `drift_rho` field is a tripwire for gross drift, not a
+  2.0–4.0% of runs across all eight `drift=0.20` cells in
+  `benchmark/calibration.json`) — but it is also harmless here, because it
+  cancels inside each pair.  The `drift_rho` field is a tripwire for gross drift, not a
   guarantee; see [Limits](#limits).
 
 ## Evidence 2 — it says "no" when there is nothing, and "yes" when there is
@@ -118,8 +123,10 @@ interleaved pairs.
    load spike hit both arms; randomising the order stops a fixed cache or
    allocator advantage from always landing on the same arm.
 2. **Ratio per pair** `r_i = a_i / b_i`; `speedup = median(r_i)`.
-3. **Interval**: percentile bootstrap over *pairs* (2000 resamples, seeded),
-   which preserves the within-pair correlation.
+3. **Interval**: percentile bootstrap over *pairs*, which preserves the
+   within-pair correlation.  The library default is 2000 resamples; the
+   committed calibration table uses 300 per cell to keep 200 trials x 8 cells
+   affordable (recorded in `generator.resamples`).
 4. **p-value**: exact two-sided sign test on `r_i > 1` vs `r_i < 1` (ties
    dropped).
 5. **MDE**: `(z_{1-alpha/2} + z_{0.8}) * sigma_log / sqrt(n)` — the effect the
@@ -143,7 +150,9 @@ python -m venv .venv && .venv/bin/pip install -e ".[test]" && .venv/bin/python -
 
 `benchmark/calibration.json` and `benchmark/demo.json` are the raw committed
 outputs of the last two commands; the tables above are copied from them, not
-re-typed from a different run.
+re-typed from a different run.  The calibration is seeded and byte-reproducible
+(verified with `cmp`); the demo measures real wall-clock time, so its last
+digits change between runs while the verdicts stay the same.
 
 ## Environment
 
@@ -163,7 +172,8 @@ re-typed from a different run.
   pairing — randomising the within-pair order is the mitigation, and
   `order_effect` is the diagnostic.
 - **The drift tripwire is weak under large common noise.**  In the calibration
-  above a 20% trend is flagged only 2.0–3.5% of the time.  That is measured,
+  above a 20% trend is flagged only 2.0–4.0% of the time across all eight
+  `drift=0.20` cells.  That is measured,
   not hidden: common drift cancels in the ratio, but the flag should not be
   read as "no drift".
 - **Subprocess mode (`pairedbench ab`)** includes shell/process startup in both
