@@ -92,7 +92,7 @@ What this says, and what it does not:
   confidence interval **12x wider** and find the 5% effect **0 / 200** times.
   The pairing is the whole product.
 - **A 20% common drift is invisible to the trend diagnostic** (flagged in only
-  2.5–3.5% of runs) — but it is also harmless here, because it cancels inside
+  2.0–3.5% of runs) — but it is also harmless here, because it cancels inside
   each pair.  The `drift_rho` field is a tripwire for gross drift, not a
   guarantee; see [Limits](#limits).
 
