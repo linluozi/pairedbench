@@ -163,7 +163,7 @@ re-typed from a different run.
   pairing — randomising the within-pair order is the mitigation, and
   `order_effect` is the diagnostic.
 - **The drift tripwire is weak under large common noise.**  In the calibration
-  above a 20% trend is flagged only 2.5–3.5% of the time.  That is measured,
+  above a 20% trend is flagged only 2.0–3.5% of the time.  That is measured,
   not hidden: common drift cancels in the ratio, but the flag should not be
   read as "no drift".
 - **Subprocess mode (`pairedbench ab`)** includes shell/process startup in both
